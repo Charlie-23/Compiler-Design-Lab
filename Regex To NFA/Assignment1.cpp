@@ -1,289 +1,198 @@
-#include<iostream>
-#include<stack>
-#include<string>
-#include <algorithm> 
-#include<vector>
-
+#include<bits/stdc++.h>
 using namespace std;
-
-class node{
-public:
-    char input;
-    int to;
-    node *next;
+struct nfastate
+{
+    vector<int> a[2], e;
+    bool f=0;
 };
+vector<nfastate> nfa;
+stack<int> st;
+
+int nfa_size;
+string dispregex;
+struct nfastate init_nfa_state;
 
 
-
-int prec(char c){
-    if(c=='*'){
-        return 3;
-    }else if(c=='.'){
-        return 2;
-    }else if(c=='+'){
-        return 1;
-    }else{
-        return -1;
-    }
+void union_()
+{
+    nfa.push_back(init_nfa_state);
+    nfa.push_back(init_nfa_state);
+    int d = st.top(); st.pop();
+    int c = st.top(); st.pop();
+    int b = st.top(); st.pop();
+    int a = st.top(); st.pop();
+    nfa[nfa_size].e.push_back(a);
+    nfa[nfa_size].e.push_back(c);
+    nfa[b].e.push_back(nfa_size+1);
+    nfa[d].e.push_back(nfa_size+1);
+    st.push(nfa_size);
+    nfa_size++;
+    st.push(nfa_size);
+    nfa_size++;
 }
 
+void concat()
+{
+    int d = st.top();
+    st.pop();
+    int c = st.top();
+    st.pop();
+    int b = st.top();
+    st.pop();
+    int a = st.top();
+    st.pop();
+    nfa[b].e.push_back(c);
+    st.push(a);
+    st.push(d);
+}
 
+void kleene_star()
+{
+    nfa.push_back(init_nfa_state);
+    nfa.push_back(init_nfa_state);
+    int b = st.top();
+    st.pop();
+    int a = st.top();
+    st.pop();
+    nfa[nfa_size].e.push_back(a);
+    nfa[nfa_size].e.push_back(nfa_size+1);
+    nfa[b].e.push_back(a);
+    nfa[b].e.push_back(nfa_size+1);
+    st.push(nfa_size);
+    nfa_size++;
+    st.push(nfa_size);
+    nfa_size++;
+}
 
-string postfix(string s) 
-{ 
-    stack<char> st; 
-    st.push('N'); 
-    int l = s.length(); 
-    string ns; 
-    for(int i = 0; i < l; i++) 
+void character(int i)
+{
+    nfa.push_back(init_nfa_state);
+    nfa.push_back(init_nfa_state);
+    //cout<<nfa_size<<endl;
+    nfa[nfa_size].a[i].push_back(nfa_size+1);
+    st.push(nfa_size);
+    nfa_size++;
+    st.push(nfa_size);
+    nfa_size++;
+}
+
+void display_nfa()
+{
+    cout<<endl<<endl;
+    cout<<"States\t|\ta\t|\tb\t|\teps(e)\t|Accepting state|"<<endl;
+    cout<<"------------------------------------------------------------------------\n";
+    for(unsigned int i=0; i<nfa.size(); i++)
     {
-        if((s[i] >= 'a' && s[i] <= 'z')||(s[i] >= 'A' && s[i] <= 'Z')){
-            ns+=s[i]; 
-        }
-
-        else if(s[i] == '('){          
-            st.push('('); 
-        }
-        else if(s[i] == ')') 
-        { 
-            while(st.top() != 'N' && st.top() != '(') 
-            { 
-                char c = st.top(); 
-                st.pop(); 
-               ns += c; 
-            } 
-            if(st.top() == '(') 
-            { 
-                char c = st.top(); 
-                st.pop(); 
-            } 
-        } 
-        else{ 
-            while(st.top() != 'N' && prec(s[i]) <= prec(st.top())) 
-            { 
-                char c = st.top(); 
-                st.pop(); 
-                ns += c; 
-            } 
-            st.push(s[i]); 
-        } 
-  
-    } 
-    while(st.top() != 'N') 
-    { 
-        char c = st.top(); 
-        st.pop(); 
-        ns += c; 
-    } 
-return ns;
+        cout<<i<<"\t|\t";
+        for(unsigned int j=0; j<nfa[i].a[0].size(); j++)cout<<nfa[i].a[0][j]<<' ';
+        cout<<"\t|\t";
+        for(unsigned int j=0; j<nfa[i].a[1].size(); j++)cout<<nfa[i].a[1][j]<<' ';
+        cout<<"\t|\t";
+        for(unsigned int j=0; j<nfa[i].e.size(); j++)cout<<nfa[i].e[j]<<' ';
+        cout<<"\t|\t";
+        if(nfa[i].f)cout<<"Yes"; else cout<<"No";
+        cout<<"\t|\n";
+    }
+    cout<<"------------------------------------------------------------------------\n";
 }
 
-void printnode(vector<node*> v){
-    cout<<"___________________________________________"<<endl;
-    cout<<"| from state\t| input\t| tostates"<<endl;
-    for(int i=0;i<v.size();i++){
-        cout<<"| "<<i<<"          \t|";
-        node* head = v[i];
-        cout<<head->input;
-        bool first = true;
-        while(head!=NULL){
-            if (first)
+int priority(char c){
+    switch(c){
+        case '*': return 3;
+        case '.': return 2;
+        case '+': return 1;
+        default: return 0; //this is for bracket (
+    }
+}
+
+string to_postfix(string regexp)
+{
+    string postfix="";
+    stack<char> op;
+    char c;
+    for(unsigned int i=0; i<regexp.size(); i++)
+    {
+        switch(regexp[i])
+        {
+            case 'a':
+                postfix+=regexp[i]; break;
+            case 'b':
+                postfix+=regexp[i]; break;
+            case '(':
+                op.push(regexp[i]); break;
+            case ')':
+                while(op.top()!='('){
+                    postfix+=op.top();
+                    op.pop();
+                }
+                op.pop();
+                break;
+            default:
+                while(!op.empty()){
+                    c=op.top();
+                    if(priority(c)>=priority(regexp[i])){
+                        postfix+=op.top();
+                        op.pop();
+                    }
+                    else break;
+                }
+                op.push(regexp[i]);
+        }
+        //cout<<regexp[i]<<' '<<postfix<<endl;
+    }
+    while(!op.empty())
+    {
+        postfix += op.top();
+        op.pop();
+    }
+    return postfix;
+}
+int main()
+{
+    int n;
+    n=1;
+    while(n--){
+        string regexp,postfix;
+        cout<<"Enter Regular Expression: ";
+        cin>>regexp;
+        dispregex=regexp;
+        string ret="";
+        char c,c2;
+        //inseting the concatenations symbol
+        for(unsigned int i=0; i<regexp.size(); i++){
+            c=regexp[i];
+            if(i+1<regexp.size()){
+                c2=regexp[i+1];
+                ret+=c;
+                if(c!='('&&c2!=')'&&c!='+'&&c2!='+'&&c2!='*'){
+                    ret+='.';
+                }
+            }
+        }
+        ret+=regexp[regexp.size()-1];
+        regexp=ret;
+        postfix = to_postfix(regexp);
+
+        cout<<"Postfix Expression for this is : "<<postfix<<endl;
+        //converting postfix to the nfa
+        for(unsigned int i=0; i<postfix.size(); i++)
+        {
+            switch(postfix[i])
             {
-                cout<<"     \t|";
-                first = false;
-            }else{
-                cout<<"     \t";
+                case 'a': character(postfix[i]-'a'); break;
+                case 'b': character(postfix[i]-'a'); break;
+                case '*': kleene_star(); break;
+                case '.': concat(); break;
+                case '+': union_();
             }
-            cout<<head->to;
-            head = head->next;
-        }
-        cout<<endl;
-    }
-    cout<<"___________________________________________"<<endl;
-}
-
-
-
-
-node* makenode(char in){
-    node* a = new node;
-    a->input = in;
-    a->to = -1;
-    a->next = NULL;
-    return a;
-}
-
-node* copynode(node* a){
-    node* b = new node;
-    b->input = -1;
-    b->to = -1;
-    b->next =NULL;
-    return b;
-}
-
-
-void AND(vector<node*> &v,vector<vector<int> > &st){
-    int x,y;
-    int first,last1;
-    y = st[st.size()-1][0];
-    x = st[st.size()-2][1];
-    first = st[st.size()-2][0];
-    last1 = st[st.size()-1][1];
-
-    st.pop_back();
-    st.pop_back();
-
-    vector<int> ptemp;
-    ptemp.push_back(first);
-    ptemp.push_back(last1);
-    st.push_back(ptemp);
-
-    node* last = v[y];
-    node * lnode= v[x];
-    node* temp = copynode(last);
-
-    while(lnode->next!=NULL){
-        lnode = lnode->next;
-    }
-    lnode->next = temp;
-    lnode->to = y;
-
-}
-
-void OR(vector<node*> &v,vector<vector<int> > &st){
-    int x,y,x1,y1;
-    x = st[st.size()-2][0];
-    y = st[st.size()-1][0];
-    x1 = st[st.size()-2][1];
-    y1 = st[st.size()-1][1];
-    node* start = makenode('e');
-    node* end = makenode('e');
-    v.push_back(start);
-    int firstnode = v.size() -1;
-    v.push_back(end);
-    int endnode = v.size() -1;
-
-    st.pop_back();
-    st.pop_back();
-
-    vector<int> ptemp;
-    ptemp.push_back(firstnode);
-    ptemp.push_back(endnode);
-    st.push_back(ptemp);
-
-    for(int i=0;i<v.size()-2;i++){
-        node* h=v[i];
-        while(h->next!=NULL){
-            if(h->to==x || h->to == y){
-                h->to = firstnode;
-            }
-            h = h->next;
-        }
-    }
-
-
-    node* temp = copynode(v[x]);
-    node* temp1 = copynode(v[y]);
-    node* t = v[firstnode];
-    while(t->next!=NULL){
-        t = t->next;
-    }
-    t->to = x;
-    t->next  = temp;
-    t->next->to = y;
-    t->next->next = temp1;
-
-    node* adlink = v[x1];
-    while(adlink->next!=NULL){
-        adlink = adlink->next;
-    }
-
-    adlink->to= endnode;
-    adlink->next = copynode(end);
-
-    node* adlink1 = v[y1];
-    while(adlink1->next!=NULL){
-        adlink1 = adlink1->next;
-    }
-    adlink1->to = endnode;
-    adlink1->next = copynode(end);
-
-}
-
-
-void closure(vector<node*> &v, vector<vector<int> > &st){
-    int x,x1;
-    x = st[st.size()-1][0];
-    x1 = st[st.size()-1][1];
-    node* s = makenode('e');
-
-    v.push_back(s);
-    int firstnode = v.size() -1;
-
-    st.pop_back();
-    vector<int> ptemp;
-    ptemp.push_back(x);
-    ptemp.push_back(firstnode);
-    st.push_back(ptemp);
-
-    for(int i=0;i<v.size()-2;i++){
-        node* h=v[i];
-        while(h->next!=NULL){
-            if(h->to==x){
-                h->to = firstnode;
-            }
-            h = h->next;
-        }
-    }
-
-
-    node* t = v[x1];
-    while(t->next!=NULL){
-        t = t->next;
-    }
-    t->to = x;
-    t->next = copynode(t);
-    t->next->to = firstnode;
-    t->next->next = copynode(s);
-}
-
-
-int main(){
-    string in;
-    cout<<"Enter a Regular Expression"<<endl;
-    cin>>in;
-    string o;
-    vector<node*> v;
-    o = postfix(in);
-    vector<vector<int>> st;
-    int firstnode = 0;
-    for(int l =0 ;l<o.length();l++){
-        if(o[l] !='+' && o[l]!='*' && o[l]!='.'){
-            node* temp = makenode(o[l]);
-            v.push_back(temp);
-            vector<int> ptemp;
-            ptemp.push_back(v.size()-1);
-            ptemp.push_back(v.size()-1);
-            st.push_back(ptemp);
-        }
-        else if(o[l]=='.'){
-            AND(v,st);
-        }
-        else if(o[l]=='+'){
-            OR(v,st);
-        }
-        else if(o[l]=='*'){
-            closure(v,st);
         }
 
-
+        int final_state=st.top();
+        st.pop();
+        int start_state=st.top();
+        st.pop();
+        nfa[final_state].f=1;
+        display_nfa();
+        return 0;
     }
-    cout<<"\nTrainsition Table:- "<<endl;
-    printnode(v);
-    cout<<endl;
-    cout<<"Starting Node:- ";
-    cout<<st[st.size()-1][0]<<endl;
-    cout<<"Ending Node:- ";
-    cout<<st[st.size()-1][1]<<endl;
-    return 0;
 }
