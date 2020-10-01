@@ -1,0 +1,49 @@
+P->prog DL SL end
+DL->D DL
+DL->
+D->TY VL ;
+TY->int
+TY->float
+VL->id U
+U->VL
+U->
+SL->S SL
+SL->
+S->ES
+S->IS
+S->WS
+S->IOS
+ES->id := E ;
+IS->if BE then SL V
+V->end
+V->else SL end
+WS->while BE do SL end
+IOS->print PE
+IOS->scan id
+PE->E
+PE->str
+BE->AE X
+X->or AE X
+X->
+AE->NE Y
+Y->and NE Y
+Y->
+NE->not NE
+NE->{ BE }
+NE->RE
+RE->E ZZ
+ZZ->= E
+ZZ->< E
+ZZ->> E
+E->T Z
+Z->+ T Z
+Z->- T Z
+Z->
+T->F W
+W->* F W
+W->/ F W
+W->
+F->( E )
+F->id
+F->ic
+F->fc
